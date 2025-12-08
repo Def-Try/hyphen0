@@ -37,6 +37,42 @@ class _NullTerminatedStringPrimitive(_Serialisable):
         return len(data)+1, data+b'\0'
     def deserialise(self, raw: bytes) -> (int, tuple[any]): # consumed, (decoded,)
         data = raw.split(b'\0')[0]
-        return len(data)+1, (raw,)
+        return len(data)+1, (data,)
 
 cstring = _NullTerminatedStringPrimitive()
+
+class _ArrayPrimitive(_Serialisable):
+    def __init__(self, ftype: _Serialisable):
+        if ftype == _Serialisable:
+            raise ValueError("field in Packet is a raw _Serialisable")
+        if not isinstance(ftype, _Serialisable):
+            raise ValueError("field in Packet is not a _Serialisable")
+        self.type = ftype
+    def __repr__(self=None):
+        if not self: return f"<Array of Unassigned>"
+        return f"<Array of {self.type}>"
+
+    def serialise(self, data: tuple[any]) -> (int, bytes): # size, raw
+        raw = b''
+        if len(data) > 1:
+            raise ValueError(f'Array expects only a single list of {self.type}, got {len(data)} values')
+        data = data[0]
+        if not isinstance(data, list):
+            raise ValueError(f'Array expects a list of {self.type}, got {type(data).__name__}')
+        for elem in data:
+            size, serialised = self.type.serialise((elem,))
+            raw += serialised # uint32.serialise(size)+serialised
+        raw = uint16.serialise((len(data),))[1]+raw
+        return len(raw), raw
+    def deserialise(self, raw: bytes) -> (int, tuple[any]): # consumed, (decoded,)
+        consumed_total = 0
+        cns, (count,) = uint16.deserialise(raw)
+        consumed_total, raw = consumed_total + 1, raw[cns:]
+        lst = []
+        for i in range(count):
+            cns, (elem,) = self.type.deserialise(raw)
+            consumed_total, raw = consumed_total + 1, raw[cns:]
+            lst.append(elem)
+        return consumed_total, (lst,)
+
+array = _ArrayPrimitive

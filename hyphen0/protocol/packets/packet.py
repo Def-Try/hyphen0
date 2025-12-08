@@ -11,8 +11,8 @@ REGISTERED_PACKETS = {
 pid_prim = pack.uint8
 
 class PacketMeta(type):
-    _next_serverbound_pid: int = 0
-    _next_clientbound_pid: int = 0
+    _next_serverbound_pid: int = -1
+    _next_clientbound_pid: int = -1
     def __new__(cls, clsname, bases, namespace):
         serverbound = bool(namespace.get("_serverbound", False))
         if not isinstance(serverbound, bool):
@@ -29,11 +29,15 @@ class PacketMeta(type):
             if not isinstance(ftype, _Serialisable):
                 raise ValueError("field in Packet is not a _Serialisable")
             namespace['_fields'].append((fname, ftype))
-        namespace['_pid'] = _next_serverbound_pid if serverbound else _next_clientbound_pid
-        _next_serverbound_pid += 1 if serverbound else 0
-        _next_clientbound_pid += 0 if serverbound else 1
+        namespace['_pid'] = cls._next_serverbound_pid if serverbound else cls._next_clientbound_pid
+        cls._next_serverbound_pid += 1 if serverbound else 0
+        cls._next_clientbound_pid += 0 if serverbound else 1
 
-        return super().__new__(cls, clsname, bases, namespace)
+        this = super().__new__(cls, clsname, bases, namespace)
+
+        REGISTERED_PACKETS['serverbound' if serverbound else 'clientbound'][namespace['_pid']] = this
+
+        return this
 
 class Packet(metaclass=PacketMeta):
     _pid: int
@@ -43,6 +47,14 @@ class Packet(metaclass=PacketMeta):
     def __init__(self, **kwargs):
         for k,v in kwargs.items():
             setattr(self, k, v)
+
+    def __repr__(self):
+        reprd = f"{self.__class__.__name__}("
+        for k,v in self.__dict__.items():
+            reprd += f"{k}={repr(v)}, "
+        if self.__dict__ != {}: reprd = reprd[:-2]
+        reprd += ")"
+        return reprd
 
     @staticmethod
     def find_by_pid(pid: int, serverbound: bool):
@@ -58,22 +70,29 @@ class Packet(metaclass=PacketMeta):
             raise ValueError("attempting to serialise non-serverbound packet for serverbound sending")
         raw = b''
         for fname, ftype in self._fields:
-            _, ser = ftype.serialise(getattr(self, fname))
+            _, ser = ftype.serialise((getattr(self, fname),))
             raw += ser
         return raw
     @staticmethod
     def deserialise(raw, serverbound: bool):
-        _, pid = pid.deserialise(raw)
-        packet_cls = self.find_by_pid(pid, serverbound)
+        _, (pid,) = pid_prim.deserialise(raw)
+        packet_cls = Packet.find_by_pid(pid, serverbound)
         fields = {}
         for fname, ftype in packet_cls._fields:
-            consumed, decoded = ftype.deserialise(raw)
+            consumed, (decoded,) = ftype.deserialise(raw)
             raw = raw[consumed:]
             fields[fname] = decoded
-        return packet_cls(*fields)
+        return packet_cls(**fields)
 
 class TestPacket(Packet):
-    test: pack.uint8 = 0
-    cstr: pack.cstring = 'hello world'
+    _serverbound: bool = False
 
-print(TestPacket().serialise())
+    test: pack.uint8 = 0
+    cstr: pack.cstring = b'hello world'
+    arr:  pack.array(pack.cstring) = [b'hi', b'segments']
+
+print("no action:", TestPacket())
+print("serialise:",
+      TestPacket().serialise(False))
+print("serialise and deserialise:",
+      Packet.deserialise(TestPacket().serialise(False), False))
