@@ -1,4 +1,4 @@
-from protocol.packets.packet import Packet, pack
+from .packet import Packet, pack
 
 # pyright: reportInvalidTypeForm=false
 

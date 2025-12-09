@@ -1,6 +1,7 @@
 import struct
 
 from protocol.primitives._serialisable import _Serialisable
+from protocol.exceptions import IncompleteData
 
 class _StructPrimitive(_Serialisable):
     def __init__(self, fmt: str):
@@ -10,9 +11,11 @@ class _StructPrimitive(_Serialisable):
     def __repr__(self):
         return f"<StructPrimitive fmt={repr(self.fmt)}>"
 
-    def serialise(self, data: tuple[any]) -> (int, bytes): # size, raw
+    def serialise(self, data: tuple[any]) -> tuple[int, bytes]: # size, raw
         return self.size, struct.pack(self.fmt, *data)
-    def deserialise(self, raw: bytes) -> (int, tuple[any]): # consumed, (decoded,)
+    def deserialise(self, raw: bytes) -> tuple[int, tuple[any]]: # consumed, (decoded,)
+        if len(raw) < self.size:
+            raise IncompleteData()
         return self.size, (struct.unpack(self.fmt, raw[0:self.size]))
 
 uint8  = _StructPrimitive("B")
@@ -26,7 +29,7 @@ class _NullTerminatedStringPrimitive(_Serialisable):
     def __repr__(self):
         return f"<NullTerminatedStringPrimitive>"
 
-    def serialise(self, data: tuple[any]) -> (int, bytes): # size, raw
+    def serialise(self, data: tuple[any]) -> tuple[int, bytes]: # size, raw
         if len(data) > 1:
             raise ValueError(f'NullTerminatedStringPrimitive expects only a single bytestring, got {len(data)} values')
         data = data[0]
@@ -35,7 +38,9 @@ class _NullTerminatedStringPrimitive(_Serialisable):
         if b'\0' in data:
             raise ValueError(f'NullTerminatedStringPrimitive used to encode bytestring containing NULL')
         return len(data)+1, data+b'\0'
-    def deserialise(self, raw: bytes) -> (int, tuple[any]): # consumed, (decoded,)
+    def deserialise(self, raw: bytes) -> tuple[int, tuple[any]]: # consumed, (decoded,)
+        if not b'\0' in raw:
+            raise IncompleteData()
         data = raw.split(b'\0')[0]
         return len(data)+1, (data,)
 
@@ -52,7 +57,7 @@ class _ArrayPrimitive(_Serialisable):
         if not self: return f"<Array of Unassigned>"
         return f"<Array of {self.type}>"
 
-    def serialise(self, data: tuple[any]) -> (int, bytes): # size, raw
+    def serialise(self, data: tuple[any]) -> tuple[int, bytes]: # size, raw
         raw = b''
         if len(data) > 1:
             raise ValueError(f'Array expects only a single list of {self.type}, got {len(data)} values')
@@ -64,12 +69,14 @@ class _ArrayPrimitive(_Serialisable):
             raw += serialised # uint32.serialise(size)+serialised
         raw = uint16.serialise((len(data),))[1]+raw
         return len(raw), raw
-    def deserialise(self, raw: bytes) -> (int, tuple[any]): # consumed, (decoded,)
+    def deserialise(self, raw: bytes) -> tuple[int, tuple[any]]: # consumed, (decoded,)
         consumed_total = 0
         cns, (count,) = uint16.deserialise(raw)
         consumed_total, raw = consumed_total + 1, raw[cns:]
         lst = []
         for i in range(count):
+            if raw == b'':
+                raise IncompleteData()
             cns, (elem,) = self.type.deserialise(raw)
             consumed_total, raw = consumed_total + 1, raw[cns:]
             lst.append(elem)

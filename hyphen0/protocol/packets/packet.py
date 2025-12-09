@@ -4,6 +4,7 @@ if sys.version_info.major == 3 and sys.version_info.minor >= 14:
 
 import protocol.primitives.basic as pack
 from protocol.primitives._serialisable import _Serialisable
+from protocol.exceptions import IncompleteData
 
 # pyright: reportInvalidTypeForm=false
 
@@ -84,12 +85,16 @@ class Packet(metaclass=PacketMeta):
             raw += ser
         return raw
     @staticmethod
-    def deserialise(raw, serverbound: bool):
+    def deserialise(raw, serverbound: bool) -> tuple[int, Packet]: # consumed, deserialised packet
+        cns = 0
         _, (pid,) = pid_prim.deserialise(raw)
         packet_cls = Packet.find_by_pid(pid, serverbound)
         fields = {}
         for fname, ftype in packet_cls._fields:
+            if raw == b'':
+                raise IncompleteData()
             consumed, (decoded,) = ftype.deserialise(raw)
+            cns += consumed
             raw = raw[consumed:]
             fields[fname] = decoded
-        return packet_cls(**fields)
+        return cns, packet_cls(**fields)

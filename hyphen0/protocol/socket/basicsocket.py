@@ -9,15 +9,16 @@ class BasicSocket:
     _bound: bool
     _terminated: bool
     def __init__(self):
-        self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM | socket.SO_REUSEADDR)
+        self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self._socket.setblocking(False)
         self._connected = False
         self._bound = False
         self._terminated = False
     
-    @staticmethod
-    def from_raw_socket(sock: socket.socket):
-        bsock = BasicSocket()
+    @classmethod
+    def from_raw_socket(cls, sock: socket.socket):
+        bsock = cls()
         bsock.set_socket(sock)
         return bsock
     
@@ -41,6 +42,26 @@ class BasicSocket:
         except OSError:
             self._connected = False
 
+    def connect(self, host: str, port: int):
+        try:
+            self._socket.setblocking(True)
+            self._socket.settimeout(10)
+            self._socket.connect((host, port))
+            self._socket.setblocking(False)
+            self._connected = True
+        except Exception:
+            raise
+
+    def bind(self, interface: str, port: int, max_clients: int = 8):
+        try:
+            self._socket.setblocking(True)
+            self._socket.bind((interface, port))
+            self._socket.listen(max_clients)
+            self._socket.setblocking(False)
+            self._bound = True
+        except Exception:
+            raise
+
     def is_open(self):
         return (self._connected or self._bound) and not self._terminated
     def is_closed(self):
@@ -50,19 +71,37 @@ class BasicSocket:
         self._terminated = True
         self._connected = False
         self._bound = False
-    
-    async def _recv(self, n: int, timeout: float = 10) -> bytes:
+
+    async def accept(self) -> BasicSocket:
         if not self.is_open():
             raise ValueError("attempted to receive from a void socket")
+        if not self._bound:
+            raise ValueError("attempted to accept from a connected socket")
+        while True:
+            await asyncio.sleep(0)
+            readable, _, _ = select.select([self._socket], [], [], 0)
+            if len(readable) == 0:
+                continue
+            nsock, addr = self._socket.accept()
+            sock = self.from_raw_socket(nsock)
+            sock._bound = False
+            sock._connected = True
+            return sock, addr
+    
+    async def _recv(self, n: int, timeout: float = 10, strict: bool = False) -> bytes:
+        if not self.is_open():
+            raise ValueError("attempted to receive from a void socket")
+        if self._bound:
+            raise ValueError("attempted to receive from a bound socket")
         
         data = b''
         started = time.time()
-        while len(data) < n:
-            if time.time() - started > timeout:
-                raise TimeoutError("receive timed out")
+        while strict and len(data) < n or len(data) == 0:
             await asyncio.sleep(0)
-            readable, _, _ = select.select([self._socket], [], [])
+            readable, _, _ = select.select([self._socket], [], [], 0)
             if len(readable) == 0:
+                if time.time() - started > timeout:
+                    raise TimeoutError("receive timed out")
                 continue
 
             try:
@@ -81,15 +120,17 @@ class BasicSocket:
     async def _send(self, data: bytes, timeout: float = 10):
         if not self.is_open():
             raise ValueError("attempted to send to a void socket")
+        if self._bound:
+            raise ValueError("attempted to send to a bound socket")
         
         n = 0
         started = time.time()
         while n < len(data):
-            if time.time() - started > timeout:
-                raise TimeoutError("receive timed out")
             await asyncio.sleep(0)
-            _, writeable, _ = select.select([], [self._socket], [])
+            _, writeable, _ = select.select([], [self._socket], [], 0)
             if len(writeable) == 0:
+                if time.time() - started > timeout:
+                    raise TimeoutError("write timed out")
                 continue
 
             try:
