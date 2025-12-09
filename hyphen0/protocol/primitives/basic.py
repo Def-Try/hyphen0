@@ -72,14 +72,38 @@ class _ArrayPrimitive(_Serialisable):
     def deserialise(self, raw: bytes) -> tuple[int, tuple[any]]: # consumed, (decoded,)
         consumed_total = 0
         cns, (count,) = uint16.deserialise(raw)
-        consumed_total, raw = consumed_total + 1, raw[cns:]
+        consumed_total, raw = consumed_total + cns, raw[cns:]
         lst = []
         for i in range(count):
             if raw == b'':
                 raise IncompleteData()
             cns, (elem,) = self.type.deserialise(raw)
-            consumed_total, raw = consumed_total + 1, raw[cns:]
+            consumed_total, raw = consumed_total + cns, raw[cns:]
             lst.append(elem)
         return consumed_total, (lst,)
 
 array = _ArrayPrimitive
+
+class _FixedPrimitive(_Serialisable):
+    def __init__(self, size: str):
+        self.size = size
+
+    def __repr__(self=None):
+        if not self: return f"<FixedPrimitive size=?>"
+        return f"<FixedPrimitive size={repr(self.size)}>"
+
+    def serialise(self, data: tuple[any]) -> tuple[int, bytes]: # size, raw
+        if len(data) > 1:
+            raise ValueError(f'FixedPrimitive expects only a single bytestring, got {len(data)} values')
+        data = data[0]
+        if not isinstance(data, bytes):
+            raise ValueError(f'FixedPrimitive expects only a single bytestring, got {type(data).__name__}')
+        if len(data) != self.size:
+            raise ValueError(f'FixedPrimitive expects only a single bytestring of size {self.size}, got {len(data)}')
+        return self.size, data
+    def deserialise(self, raw: bytes) -> tuple[int, tuple[any]]: # consumed, (decoded,)
+        if len(raw) < self.size:
+            raise IncompleteData()
+        return self.size, (raw[0:self.size],)
+
+fixed = _FixedPrimitive

@@ -3,6 +3,7 @@ from ._crypter import _Crypter
 from Crypto.Cipher import AES
 
 class AES256Crypter(_Crypter):
+    _id: str = "aes256"
     def __init__(self, key: bytes):
         self._key = key
 

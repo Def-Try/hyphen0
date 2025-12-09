@@ -71,6 +71,8 @@ class BasicSocket:
         self._terminated = True
         self._connected = False
         self._bound = False
+    def close(self):
+        return self._close()
 
     async def accept(self) -> BasicSocket:
         if not self.is_open():

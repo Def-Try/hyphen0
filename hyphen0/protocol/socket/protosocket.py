@@ -2,9 +2,12 @@ from .basicsocket import BasicSocket
 from ..packets.packet import Packet
 
 from collections import deque
-from typing import Deque
+from typing import Deque, Type, List
 
 from ..exceptions import IncompleteData
+
+import time
+import asyncio
 
 class ProtoSocket(BasicSocket):
     def __init__(self, serverbound: bool = False, *args, **kwargs):
@@ -41,3 +44,19 @@ class ProtoSocket(BasicSocket):
         return self._inbound.popleft()
     def write_packet(self, packet: Packet):
         self._outbound.append(packet)
+    async def wait_for_packet(self, ptype: Type[Packet]|List[Type[Packet]], timeout: float = 10) -> Packet:
+        started = time.time()
+        while True:
+            await asyncio.sleep(0)
+            if time.time() - started > timeout:
+                raise TimeoutError("packet did not appear before timeout expiry")
+            for i in self._inbound:
+                if isinstance(ptype, list):
+                    for j in ptype:
+                        if not isinstance(i, j): continue
+                        self._inbound.remove(i)
+                        return i
+                    continue
+                if not isinstance(i, ptype): continue
+                self._inbound.remove(i)
+                return i
