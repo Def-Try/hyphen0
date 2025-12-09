@@ -1,7 +1,11 @@
-import struct
+import sys
+if sys.version_info.major == 3 and sys.version_info.minor >= 14:
+    from annotationlib import Format as annotationlib_Format # type: ignore[import-not-found]
 
 import protocol.primitives.basic as pack
 from protocol.primitives._serialisable import _Serialisable
+
+# pyright: reportInvalidTypeForm=false
 
 REGISTERED_PACKETS = {
     "clientbound": {},
@@ -11,13 +15,17 @@ REGISTERED_PACKETS = {
 pid_prim = pack.uint8
 
 class PacketMeta(type):
-    _next_serverbound_pid: int = -1
-    _next_clientbound_pid: int = -1
+    _next_serverbound_pid: int = 0
+    _next_clientbound_pid: int = 0
     def __new__(cls, clsname, bases, namespace):
-        serverbound = bool(namespace.get("_serverbound", False))
+        serverbound = namespace.get("_serverbound", None)
+        if serverbound == None:
+            return super().__new__(cls, clsname, bases, namespace)
         if not isinstance(serverbound, bool):
             raise ValueError("_serverbound of Packet should be a boolean")
         hints = namespace.get("__annotations__", {})
+        if annotationlib_Format: # i have no clue why python 3.14 changed that, but now we have to generate annotations and i HATE it
+            hints = namespace['__annotate_func__'](annotationlib_Format.VALUE)
 
         namespace['_fields'] = [('_pid', pid_prim)]
 
@@ -32,6 +40,8 @@ class PacketMeta(type):
         namespace['_pid'] = cls._next_serverbound_pid if serverbound else cls._next_clientbound_pid
         cls._next_serverbound_pid += 1 if serverbound else 0
         cls._next_clientbound_pid += 0 if serverbound else 1
+
+        # print(f"registering {namespace['__qualname__']} as pid {namespace['_pid']}")
 
         this = super().__new__(cls, clsname, bases, namespace)
 
@@ -83,16 +93,3 @@ class Packet(metaclass=PacketMeta):
             raw = raw[consumed:]
             fields[fname] = decoded
         return packet_cls(**fields)
-
-class TestPacket(Packet):
-    _serverbound: bool = False
-
-    test: pack.uint8 = 0
-    cstr: pack.cstring = b'hello world'
-    arr:  pack.array(pack.cstring) = [b'hi', b'segments']
-
-print("no action:", TestPacket())
-print("serialise:",
-      TestPacket().serialise(False))
-print("serialise and deserialise:",
-      Packet.deserialise(TestPacket().serialise(False), False))

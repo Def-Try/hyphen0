@@ -1,5 +1,7 @@
 from protocol.packets.packet import Packet, pack
 
+# pyright: reportInvalidTypeForm=false
+
 class HandshakeInitiate(Packet):
     _serverbound: bool = True
 
@@ -15,9 +17,4 @@ class HandshakeConfirm(Packet):
 class HandshakeCryptModesList(Packet):
     _serverbound: bool = True
 
-    crypt_modes: pack.array[pack.cstring]
-
-class a(Packet):
-    _serverbound: bool = True
-class a(Packet):
-    _serverbound: bool = True
+    crypt_modes: pack.array(pack.cstring)
