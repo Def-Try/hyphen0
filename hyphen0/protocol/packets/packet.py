@@ -35,7 +35,7 @@ class PacketMeta(type):
                 continue
             if ftype == _Serialisable:
                 raise ValueError("field in Packet is a raw _Serialisable")
-            if not isinstance(ftype, _Serialisable):
+            if not isinstance(ftype, _Serialisable) and not issubclass(ftype, pack.cstruct):
                 raise ValueError("field in Packet is not a _Serialisable")
             namespace['_fields'].append((fname, ftype))
         namespace['_pid'] = cls._next_serverbound_pid if serverbound else cls._next_clientbound_pid
@@ -50,7 +50,7 @@ class PacketMeta(type):
 
         return this
 
-class Packet(metaclass=PacketMeta):
+class Packet(_Serialisable, metaclass=PacketMeta):
     _pid: int
     _serverbound: bool
     _fields: tuple[str, _Serialisable]
@@ -98,3 +98,18 @@ class Packet(metaclass=PacketMeta):
             raw = raw[consumed:]
             fields[fname] = decoded
         return cns, packet_cls(**fields)
+
+class HeartbeatClientbound(Packet):
+    _serverbound: bool = False
+    initiating: pack.boolean
+    nonce: pack.uint32
+class HeartbeatServerbound(Packet):
+    _serverbound: bool = True
+    initiating: pack.boolean
+    nonce: pack.uint32
+class Kick(Packet):
+    _serverbound: bool = False
+    message: pack.cstring
+class Disconnect(Packet):
+    _serverbound: bool = True
+    message: pack.cstring

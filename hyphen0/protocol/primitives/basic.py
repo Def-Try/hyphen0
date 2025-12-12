@@ -1,5 +1,9 @@
 import struct
 
+import sys
+if sys.version_info.major == 3 and sys.version_info.minor >= 14:
+    from annotationlib import Format as annotationlib_Format # type: ignore[import-not-found]
+
 from protocol.primitives._serialisable import _Serialisable
 from protocol.exceptions import IncompleteData
 
@@ -18,12 +22,13 @@ class _StructPrimitive(_Serialisable):
             raise IncompleteData()
         return self.size, (struct.unpack(self.fmt, raw[0:self.size]))
 
-uint8  = _StructPrimitive("B")
-uint16 = _StructPrimitive("H")
-uint32 = _StructPrimitive("I")
-int8   = _StructPrimitive("b")
-int16  = _StructPrimitive("h")
-int32  = _StructPrimitive("i")
+uint8   = _StructPrimitive("B")
+uint16  = _StructPrimitive("H")
+uint32  = _StructPrimitive("I")
+int8    = _StructPrimitive("b")
+int16   = _StructPrimitive("h")
+int32   = _StructPrimitive("i")
+boolean = _StructPrimitive("?")
 
 class _NullTerminatedStringPrimitive(_Serialisable):
     def __repr__(self):
@@ -107,3 +112,73 @@ class _FixedPrimitive(_Serialisable):
         return self.size, (raw[0:self.size],)
 
 fixed = _FixedPrimitive
+
+class _CStructPrimitiveMeta(type):
+    def __new__(cls, clsname, bases, namespace):
+        hints = namespace.get("__annotations__", {})
+        if annotationlib_Format: # i have no clue why python 3.14 changed that, but now we have to generate annotations and i HATE it
+            hints = namespace['__annotate_func__'](annotationlib_Format.VALUE)
+
+        namespace['_fields'] = []
+
+        for fname, ftype in hints.items():
+            if fname.startswith("_"):
+                continue
+            if ftype == _Serialisable:
+                raise ValueError("field in Struct is a raw _Serialisable")
+            if not isinstance(ftype, _Serialisable):
+                raise ValueError("field in Struct is not a _Serialisable")
+            namespace['_fields'].append((fname, ftype))
+
+        # print(f"registering {namespace['__qualname__']} as pid {namespace['_pid']}")
+
+        this = super().__new__(cls, clsname, bases, namespace)
+
+        return this
+
+class _CStructPrimitive(_Serialisable, metaclass=_CStructPrimitiveMeta):
+    _fields: tuple[str, _Serialisable]
+
+    def __init__(self, **kwargs):
+        for k,v in kwargs.items():
+            setattr(self, k, v)
+
+    
+    def __repr__(self):
+        reprd = f"{self.__class__.__name__}("
+        for k,v in self.__dict__.items():
+            reprd += f"{k}={repr(v)}, "
+        if self.__dict__ != {}: reprd = reprd[:-2]
+        reprd += ")"
+        return reprd
+
+    @classmethod
+    def serialise(cls, data: tuple[any]) -> tuple[int, bytes]: # size, raw
+        # if not self: raise ValueError("StructPrimitive should be initialised")
+
+        if len(data) > 1:
+            raise ValueError(f'CStructPrimitive expects only a single struct, got {len(data)} values')
+        data = data[0]
+        if not isinstance(data, _CStructPrimitive):
+            raise ValueError(f'CStructPrimitive expects only a single struct, got {type(data).__name__}')
+
+        raw = b''
+        for fname, ftype in data._fields:
+            _, ser = ftype.serialise((getattr(data, fname),))
+            raw += ser
+        return len(raw), raw
+
+    @classmethod
+    def deserialise(cls, raw: bytes) -> tuple[int, tuple[any]]: # consumed, (decoded,)
+        fields = {}
+        cns = 0
+        for fname, ftype in cls._fields:
+            if raw == b'':
+                raise IncompleteData()
+            consumed, (decoded,) = ftype.deserialise(raw)
+            cns += consumed
+            raw = raw[consumed:]
+            fields[fname] = decoded
+        return cns, (cls(**fields),)
+
+cstruct = _CStructPrimitive

@@ -3,6 +3,8 @@ import select
 import asyncio
 import time
 
+from ..exceptions import SocketClosed
+
 class BasicSocket:
     _socket: socket.socket
     _connected: bool
@@ -15,12 +17,19 @@ class BasicSocket:
         self._connected = False
         self._bound = False
         self._terminated = False
+        self._nicename = None
     
     @classmethod
     def from_raw_socket(cls, sock: socket.socket):
         bsock = cls()
         bsock.set_socket(sock)
         return bsock
+
+    def getnicename(self) -> str:
+        if self._nicename: return self._nicename
+        host, port = self._socket.getpeername()
+        self._nicename = f"{host}:{port}"
+        return self._nicename
     
     def set_socket(self, sock: socket.socket):
         if self._connected or self._bound:
@@ -74,14 +83,17 @@ class BasicSocket:
     def close(self):
         return self._close()
 
-    async def accept(self) -> BasicSocket:
+    async def accept(self):
         if not self.is_open():
             raise ValueError("attempted to receive from a void socket")
         if not self._bound:
             raise ValueError("attempted to accept from a connected socket")
         while True:
             await asyncio.sleep(0)
-            readable, _, _ = select.select([self._socket], [], [], 0)
+            try:
+                readable, _, _ = select.select([self._socket], [], [], 0)
+            except ValueError:
+                raise SocketClosed()
             if len(readable) == 0:
                 continue
             nsock, addr = self._socket.accept()
@@ -100,7 +112,10 @@ class BasicSocket:
         started = time.time()
         while strict and len(data) < n or len(data) == 0:
             await asyncio.sleep(0)
-            readable, _, _ = select.select([self._socket], [], [], 0)
+            try:
+                readable, _, _ = select.select([self._socket], [], [], 0)
+            except ValueError:
+                raise SocketClosed()
             if len(readable) == 0:
                 if time.time() - started > timeout:
                     raise TimeoutError("receive timed out")
@@ -129,7 +144,10 @@ class BasicSocket:
         started = time.time()
         while n < len(data):
             await asyncio.sleep(0)
-            _, writeable, _ = select.select([], [self._socket], [], 0)
+            try:
+                _, writeable, _ = select.select([], [self._socket], [], 0)
+            except ValueError:
+                raise SocketClosed()
             if len(writeable) == 0:
                 if time.time() - started > timeout:
                     raise TimeoutError("write timed out")

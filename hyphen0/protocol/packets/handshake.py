@@ -22,12 +22,16 @@ class HandshakeCryptModeSelect(Packet):
 
     crypt_mode: pack.cstring
 class HandshakeCryptOK(Packet):
-    _serverbound: bool = True
+    _serverbound: bool = False
 
 class HandshakeCryptKEXClient(Packet):
     _serverbound: bool = True
+    public_key: pack.cstring
 class HandshakeCryptKEXServer(Packet):
     _serverbound: bool = False
+    salt: pack.fixed(32)
+    key_len: pack.uint16
+    public_key: pack.cstring
 
 class HandshakeCryptTestPing(Packet):
     _serverbound: bool = True
