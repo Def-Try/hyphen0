@@ -3,6 +3,8 @@ import struct
 import sys
 if sys.version_info.major == 3 and sys.version_info.minor >= 14:
     from annotationlib import Format as annotationlib_Format # type: ignore[import-not-found]
+else:
+    annotationlib_Format = None
 
 from hyphen0.primitives._serialisable import _Serialisable
 from hyphen0.exceptions import IncompleteData
