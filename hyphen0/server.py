@@ -58,7 +58,7 @@ class SimpleChatServer(Hyphen0Server):
             if 'uid' not in bcldata: continue
             broadcast_client.write_packet(ChatMessage(uid=cldata['uid'], content=pack.content, nonce=pack.nonce))
 
-server = SimpleChatServer('', 12345)
+server = SimpleChatServer('', 1337)
 server.set_keypair(ECC.generate(curve='p256'))
 
 server.serve()

@@ -15,7 +15,7 @@ class ConnectScreen(ModalScreen):
         self._app = app
         super().__init__(*args, **kwargs)
 
-    def compose(self) -> ComposeResult:
+    def compose(self):
         with Vertical():
             with Middle():
                 yield Input(f"user_{random.randint(100,999)}", placeholder="Username", id="connect-username")
