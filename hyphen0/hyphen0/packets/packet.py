@@ -85,7 +85,7 @@ class Packet(_Serialisable, metaclass=PacketMeta):
             raw += ser
         return raw
     @staticmethod
-    def deserialise(raw, serverbound: bool) -> tuple[int, Packet]: # consumed, deserialised packet
+    def deserialise(raw, serverbound: bool) -> tuple[int, object]: # consumed, deserialised packet
         cns = 0
         _, (pid,) = pid_prim.deserialise(raw)
         packet_cls = Packet.find_by_pid(pid, serverbound)
