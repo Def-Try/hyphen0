@@ -24,17 +24,17 @@ class ConnectScreen(ModalScreen):
                     yield Button("Connect", id="connect-connect")
                     yield Label("status...", id="connect-status")
 
-    @on(Input.Submitted, "#connect-address")
+    @on(Input.Submitted, "#connect-username")
     def _(self, event):
         self.query_one("#connect-address").focus()
     @on(Input.Submitted, "#connect-address")
-    # @on(Button.Clicked, "#connect-connect")
+    @on(Button.Pressed, "#connect-connect")
     async def try_connecting(self, event: Input.Submitted):
         self.query_one("#connect-username").disabled = True
         self.query_one("#connect-address").disabled = True
         self.query_one("#connect-connect").disabled = True
         statuslabel = self.query_one("#connect-status")
-        async for (ok, message) in self.app.attempt_connecting(self.query_one("#connect-username").value, event.value):
+        async for (ok, message) in self.app.attempt_connecting(self.query_one("#connect-username").value, self.query_one("#connect-address").value):
             await asyncio.sleep(0)
             self.app.add_message("SYSTEM", f"connect: {message}")
             statuslabel.content = message
