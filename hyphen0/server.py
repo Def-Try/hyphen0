@@ -1,12 +1,12 @@
 import asyncio
 import random
 
-from protocol.server import Hyphen0Server
-from protocol.client import Hyphen0Client
+from hyphen0.server import Hyphen0Server
+from hyphen0.client import Hyphen0Client
 
 from Crypto.PublicKey import ECC
 
-from protocol.packets.chat import ChatUserAuthenticate, ChatUserAdd, ChatUserRemove, ChatUserInfo, \
+from hyphen0.packets.chat import ChatUserAuthenticate, ChatUserAdd, ChatUserRemove, ChatUserInfo, \
                                   ChatSendMessage, ChatMessage, ChatSVMessage
 
 class SimpleChatServer(Hyphen0Server):
