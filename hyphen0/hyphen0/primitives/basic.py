@@ -1,6 +1,5 @@
 import struct
 
-annotationlib_Format = None
 import sys
 if sys.version_info.major == 3 and sys.version_info.minor >= 14:
     from annotationlib import Format as annotationlib_Format # type: ignore[import-not-found]
@@ -119,8 +118,8 @@ fixed = _FixedPrimitive
 class _CStructPrimitiveMeta(type):
     def __new__(cls, clsname, bases, namespace):
         hints = namespace.get("__annotations__", {})
-        if sys.version_info.major == 3 and sys.version_info.minor >= 14: # i have no clue why python 3.14 changed that, but now we have to generate annotations and i HATE it
-            hints = namespace['__annotate_func__'](1) # (annotationlib_Format.VALUE)
+        if annotationlib_Format: # i have no clue why python 3.14 changed that, but now we have to generate annotations and i HATE it
+            hints = namespace['__annotate_func__'](annotationlib_Format.VALUE)
 
         namespace['_fields'] = []
 
