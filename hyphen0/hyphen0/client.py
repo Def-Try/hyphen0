@@ -3,10 +3,13 @@ import functools
 import random
 import traceback
 from .socket.protosocket import ProtoSocket
-from .socket.cryptsocket import CryptSocket
+from .socket.cryptsocket import cast as cast_to_CryptSocket
 
 from .packets.packet import Kick, Disconnect
 from .exceptions import WereKicked
+
+from .zerotrust.wrapper import ZerotrustSocket
+from .zerotrust.layers.http import HTTPZTLayer
 
 from .packets.handshake import HandshakeInitiate, HandshakeConfirm, HandshakeCancel, HandshakeOK, \
                                HandshakeCryptModesList, HandshakeCryptModeSelect, HandshakeCryptOK, \
@@ -27,7 +30,7 @@ class Hyphen0Client:
 
     def __init__(self, host: str, port: int):
         self._host, self._port = host, port
-        self._socket = ProtoSocket(True)
+        self._socket = ZerotrustSocket.cast(ProtoSocket(True), HTTPZTLayer())
         self._keypair = None
         self._session_nonce = None
         self._closed = False
@@ -87,7 +90,7 @@ class Hyphen0Client:
 
         await self._socket.wait_for_packet(HandshakeCryptOK)
         
-        self._socket = CryptSocket.cast(self._socket)
+        self._socket = cast_to_CryptSocket(self._socket)
         self._socket.set_encryption(crypter)
         
         self._stage = "encrypting_test"

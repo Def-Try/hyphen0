@@ -7,6 +7,7 @@ setup(
     install_requires=[
         'asyncio',
         'pycryptodome',
+        'ua-generator'
     ],
     author='googer_',
     author_email='googer760@gmail.com',

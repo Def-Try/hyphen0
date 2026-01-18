@@ -80,7 +80,7 @@ class Packet(_Serialisable, metaclass=PacketMeta):
 
     def serialise(self, serverbound: bool) -> bytes:
         if self._serverbound != serverbound:
-            raise ValueError("attempting to serialise non-serverbound packet for serverbound sending")
+            raise ValueError(f"attempting to serialise packet ({type(self).__name__}) for {'non-' if not serverbound else ''}serverbound sending")
         raw = b''
         for fname, ftype in self._fields:
             _, ser = ftype.serialise((getattr(self, fname),))

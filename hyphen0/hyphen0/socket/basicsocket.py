@@ -110,7 +110,7 @@ class BasicSocket:
         
         data = b''
         started = time.time()
-        while strict and len(data) < n or len(data) == 0:
+        while (strict and len(data) < n) or len(data) == 0:
             await asyncio.sleep(0)
             try:
                 readable, _, _ = select.select([self._socket], [], [], 0)
