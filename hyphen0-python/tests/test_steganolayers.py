@@ -14,8 +14,6 @@ def test_steganolayer_http():
     testsend.push_send(b"helloworld")
     pulled1 = testsend.pull_send(5)
     pulled2 = testsend.pull_send(5)
-    print(pulled1)
-    print(pulled2)
     assert pulled1 == b'POST /testtesttest HTTP/1.1\nConnection: keep-alive\nCache-Control: max-age=0\nUser-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 Edg/138.0.0.0\nAccept: */*\nContent-Length: 8\n\naGVsbG8='
     assert pulled2 == b'POST /testtesttest HTTP/1.1\nConnection: keep-alive\nCache-Control: max-age=0\nUser-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 Edg/138.0.0.0\nAccept: */*\nContent-Length: 8\n\nd29ybGQ='
 

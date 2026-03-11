@@ -17,10 +17,8 @@ class SteganoLayer:
     def can_pull_recv(self) -> bool:
         return len(self.unwrapped_recv_buffer + self.recv_buffer) > 0
     def push_recv(self, data: bytes):
-        print(f"pushed for receiving: {data}")
         self.recv_buffer += data
     def push_send(self, data: bytes):
-        print(f"pushed for sending: {data}")
         self.send_buffer += data
     def pull_recv(self, n: int) -> bytes:
         if not self.can_pull_recv():
@@ -34,12 +32,10 @@ class SteganoLayer:
         if len(recvd) > n:
             self.unwrapped_recv_buffer = recvd[n:]
             recvd = recvd[:n]
-        print(f"pulling recvd: {recvd}")
         return recvd
     def pull_send(self, n: int) -> bytes:
         if not self.can_pull_send():
             return b""
         tsend = self.send_buffer[:n]
         self.send_buffer = self.send_buffer[n:]
-        print(f"pulling tsend: {self.wrap(tsend)}")
         return self.wrap(tsend)
