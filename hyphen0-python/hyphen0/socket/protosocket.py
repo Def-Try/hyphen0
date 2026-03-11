@@ -1,4 +1,4 @@
-from .basicsocket import BasicSocket
+from .steganosocket import SteganoSocket, SteganoLayer
 from ..packets.packet import Packet, pack, HeartbeatClientbound, HeartbeatServerbound
 
 from collections import deque
@@ -10,11 +10,10 @@ import time
 import asyncio
 import random
 
-class ProtoSocket(BasicSocket):
-    def __init__(self, serverbound: bool = False,
-                        heartbeat_interval: int = 10, max_heartbeat_misses: int = 5,
-                *args, **kwargs):
-        super().__init__(*args, **kwargs)
+class ProtoSocket(SteganoSocket):
+    def __init__(self, serverbound: bool = False, heartbeat_interval: int = 10, max_heartbeat_misses: int = 5, steganolayer: SteganoLayer|None = None):
+        super().__init__(steganolayer)
+        if steganolayer: steganolayer.set_serverbound(serverbound)
         self._serverbound = serverbound
         self._inbound: Deque[Packet] = deque()
         self._outbound: Deque[Packet] = deque()

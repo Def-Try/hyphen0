@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hyphen0"
+version = "1.0.0"
+dependencies = [
+    "asyncio",
+    "PyCryptoDome",
+    "ua-generator"
+]
+requires-python = ">=3.8"
+authors = [
+  {name = "googer_", email = "googer760@gmail.com"},
+]
+maintainers = [
+  {name = "googer_", email = "googer760@gmail.com"}
+]
+description = "DPI and human inspection resistant general data transfer protocol"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICEN[CS]E.*"]
+keywords = ["encryption", "crypto", "stegano", "steganography", "protocol"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python"
+]
+
+[project.optional-dependencies]
+cli = [
+  "textual"
+]
+
+[project.urls]
+Repository = "https://github.com/Def-Try/hyphen0"
+"Bug Tracker" = "https://github.com/Def-Try/hyphen0/issues"
+
+[tool.pytest]
+minversion = "9.0"
+testpaths = [
+    "tests"
+]

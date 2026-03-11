@@ -1,16 +1,20 @@
 from .protosocket import ProtoSocket
-from ..zerotrust.wrapper import ZerotrustSocket
 
 from ..encryption._crypter import _Crypter
 from ..packets.packet import Packet, pack
 from ..exceptions import IncompleteData
 
-class CryptSocketBase(ProtoSocket):
-    def __init__(self):
+class CryptSocket(ProtoSocket):
+    _encryption = None
+
+    def __init__(self, _socket):
         self._encryption = None
 
-    def __new__(*args, **kwargs):
-        raise ValueError("CryptSocket should only be casted from ProtoSocket, not created.")
+    def __new__(cls, sock: ProtoSocket):
+        assert isinstance(sock, ProtoSocket)
+        sock.__class__ = cls
+        assert isinstance(sock, cls)
+        return sock
     
     def set_encryption(self, crypter: _Crypter|None):
         if crypter == None:
@@ -19,11 +23,11 @@ class CryptSocketBase(ProtoSocket):
         if not isinstance(crypter, _Crypter):
             raise ValueError("crypter has to be instance of _Crypter or None")
         self._encryption = crypter
-
-class CryptSocket(CryptSocketBase):
+    
     async def _read_packet(self, timeout: float = 10) -> Packet:
         if self._encryption == None:
-            return await super()._read_packet(timeout)
+            raise ValueError("CryptSocket should have encryption set before reading packets")
+            # return await super()._read_packet(timeout)
         try:
             _, (size,) = pack.uint32.deserialise(await self._recv(4, timeout, True))
             crypted = await self._recv(size, timeout, True)
@@ -34,7 +38,8 @@ class CryptSocket(CryptSocketBase):
             pass
     async def _write_packet(self, packet: Packet, timeout: float = 10):
         if self._encryption == None:
-            return await super()._write_packet(packet, timeout)
+            raise ValueError("CryptSocket should have encryption set before write packets")
+            # return await super()._write_packet(packet, timeout)
         try:
             serialised = packet.serialise(self._serverbound)
             crypted = self._encryption.encrypt(serialised)
@@ -42,19 +47,3 @@ class CryptSocket(CryptSocketBase):
             await self._send(size+crypted, timeout)
         except TimeoutError:
             pass
-
-class CryptZerotrustSocket(CryptSocket, ZerotrustSocket):
-    pass
-
-def cast(sock: ProtoSocket|ZerotrustSocket):
-    if isinstance(sock, ZerotrustSocket):
-        assert isinstance(sock, ZerotrustSocket)
-        sock.__class__ = CryptZerotrustSocket
-        sock.__init__()
-        assert isinstance(sock, CryptZerotrustSocket)
-    else:
-        assert isinstance(sock, ProtoSocket)
-        sock.__class__ = CryptSocket
-        sock.__init__()
-        assert isinstance(sock, CryptSocket)
-    return sock

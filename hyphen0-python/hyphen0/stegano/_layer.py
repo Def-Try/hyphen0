@@ -1,12 +1,15 @@
-class ZTLayer:
+class SteganoLayer:
+    serverbound: bool = False
     chunk_size: int = 1024
     recv_buffer: bytes = b''
     send_buffer: bytes = b''
     unwrapped_recv_buffer: bytes = b''
+    
+    def set_serverbound(self, serverbound: bool): self.serverbound = serverbound
 
-    def wrap(data: bytes) -> bytes:
+    def wrap(self, data: bytes) -> bytes:
         raise NotImplementedError
-    def unwrap(data: bytes) -> tuple[int, bytes]:
+    def unwrap(self, data: bytes) -> tuple[int, bytes]:
         raise NotImplementedError
     
     def can_pull_send(self) -> bool:
@@ -14,8 +17,10 @@ class ZTLayer:
     def can_pull_recv(self) -> bool:
         return len(self.unwrapped_recv_buffer + self.recv_buffer) > 0
     def push_recv(self, data: bytes):
+        print(f"pushed for receiving: {data}")
         self.recv_buffer += data
     def push_send(self, data: bytes):
+        print(f"pushed for sending: {data}")
         self.send_buffer += data
     def pull_recv(self, n: int) -> bytes:
         if not self.can_pull_recv():
@@ -29,10 +34,12 @@ class ZTLayer:
         if len(recvd) > n:
             self.unwrapped_recv_buffer = recvd[n:]
             recvd = recvd[:n]
+        print(f"pulling recvd: {recvd}")
         return recvd
     def pull_send(self, n: int) -> bytes:
         if not self.can_pull_send():
             return b""
         tsend = self.send_buffer[:n]
         self.send_buffer = self.send_buffer[n:]
+        print(f"pulling tsend: {self.wrap(tsend)}")
         return self.wrap(tsend)

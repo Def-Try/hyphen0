@@ -3,13 +3,10 @@ import functools
 import random
 import traceback
 from .socket.protosocket import ProtoSocket
-from .socket.cryptsocket import cast as cast_to_CryptSocket
+from .socket.cryptsocket import CryptSocket
 
 from .packets.packet import Kick, Disconnect
 from .exceptions import WereKicked
-
-from .zerotrust.wrapper import ZerotrustSocket
-from .zerotrust.layers.http import HTTPZTLayer
 
 from .packets.handshake import HandshakeInitiate, HandshakeConfirm, HandshakeCancel, HandshakeOK, \
                                HandshakeCryptModesList, HandshakeCryptModeSelect, HandshakeCryptOK, \
@@ -18,6 +15,8 @@ from .packets.handshake import HandshakeInitiate, HandshakeConfirm, HandshakeCan
 
 from .encryption.aes import AESCrypter
 
+from .stegano._layer import SteganoLayer
+
 from Crypto.PublicKey import ECC
 from Crypto.Protocol import DH
 from Crypto.Protocol import KDF
@@ -25,12 +24,13 @@ from Crypto.Hash import SHA256
 
 class Hyphen0Client:
     _trace_hooks: bool = True
+    _capture_errors: bool = True
 
     ENCRYPTION_MODES = {'aes': AESCrypter}
 
-    def __init__(self, host: str, port: int):
+    def __init__(self, host: str, port: int, steganolayer: SteganoLayer|None = None):
         self._host, self._port = host, port
-        self._socket = ZerotrustSocket.cast(ProtoSocket(True), HTTPZTLayer())
+        self._socket = ProtoSocket(True, 10, 5, steganolayer)
         self._keypair = None
         self._session_nonce = None
         self._closed = False
@@ -42,6 +42,12 @@ class Hyphen0Client:
             raise ValueError("keypair should be ECCKey")
         self._keypair = keypair
 
+    def _update_task_done_callback(self, task):
+        try:
+            if isinstance(task.exception(), asyncio.CancelledError): return
+            if task.exception(): raise task.exception()
+        except asyncio.CancelledError: pass
+
     async def mainloop(self):
         if not self._keypair:
             raise ValueError("set keypair before starting connection")
@@ -52,6 +58,7 @@ class Hyphen0Client:
             self._closed = True
             raise
         update_task = asyncio.create_task(self._serve_socket_update())
+        update_task.add_done_callback(self._update_task_done_callback)
 
         self._stage = "handshaking"
         self._socket.write_packet(HandshakeInitiate())
@@ -90,7 +97,7 @@ class Hyphen0Client:
 
         await self._socket.wait_for_packet(HandshakeCryptOK)
         
-        self._socket = cast_to_CryptSocket(self._socket)
+        self._socket = CryptSocket(self._socket)
         self._socket.set_encryption(crypter)
         
         self._stage = "encrypting_test"
@@ -125,10 +132,11 @@ class Hyphen0Client:
             try:
                 await self._socket.update(0)
             except Exception as e:
-                print(f'[hyphen0] [LOCAL] {e}')
-                print(f"[hyphen0] [LOCAL] recv buffer", self._socket._recv_buffer)
+                if not self._capture_errors: raise
+                print(f'[hyphen0] [CLIENT] {e}')
+                print(f"[hyphen0] [CLIENT] recv buffer", self._socket._recv_buffer)
                 for line in traceback.format_exc().split('\n'):
-                    print(f"[hyphen0] [LOCAL] {line}")
+                    print(f"[hyphen0] [CLIENT] {line}")
                 await self.close(graceful=False)
                 raise
             await asyncio.sleep(0)
@@ -139,11 +147,11 @@ class Hyphen0Client:
 
     async def _call_hook(self, event: str, *args, **kwargs):
         if self._trace_hooks:
-            print(f"[hyphen0] [LOCAL] {event} {args} {kwargs}")
+            print(f"[hyphen0] [CLIENT] {event} {args} {kwargs}")
         for callable in self._hooks.get(event, {}).values():
             await callable(*args, **kwargs)
         if not hasattr(self, f"_event_{event}"):
-            return # print(f"[hyphen0] [LOCAL] no hook")
+            return # print(f"[hyphen0] [CLIENT] no hook")
         return await getattr(self, f"_event_{event}")(*args, **kwargs)
 
     async def work(self):

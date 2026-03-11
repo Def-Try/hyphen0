@@ -83,6 +83,13 @@ class BasicSocket:
     def close(self):
         return self._close()
 
+    async def _accept(self):
+        nsock, addr = self._socket.accept()
+        sock = self.from_raw_socket(nsock)
+        sock._bound = False
+        sock._connected = True
+        return sock, addr
+
     async def accept(self):
         if not self.is_open():
             raise ValueError("attempted to receive from a void socket")
@@ -96,10 +103,7 @@ class BasicSocket:
                 raise SocketClosed()
             if len(readable) == 0:
                 continue
-            nsock, addr = self._socket.accept()
-            sock = self.from_raw_socket(nsock)
-            sock._bound = False
-            sock._connected = True
+            sock, addr = await self._accept()
             return sock, addr
     
     async def _recv(self, n: int, timeout: float = 10, strict: bool = False) -> bytes:
