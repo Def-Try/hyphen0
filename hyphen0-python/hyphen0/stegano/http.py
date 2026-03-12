@@ -20,7 +20,7 @@ class HTTPSteganoLayer(SteganoLayer):
     def _make_header(self) -> bytes:
         if self.serverbound:
             return b"POST /"+(self._randomstr() if self._url is None else self._url).encode()+b" HTTP/1.1\nConnection: keep-alive\nCache-Control: max-age=0\nUser-Agent: "+self._useragent().encode()+b"\nAccept: */*\n"
-        return b"HTTP/1.1 200 OK\nConnection: keep-alive\nCache-Control: max-age=0\nServer: hyphen0\n"
+        return b"HTTP/1.1 200 OK\nConnection: keep-alive\nCache-Control: max-age=0\n"
     def _parse_header(self, data) -> tuple[int, int]:
         if self.serverbound: # server -> client
             assert(data[0:15] == b"HTTP/1.1 200 OK")
