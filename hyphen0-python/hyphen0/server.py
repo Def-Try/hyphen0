@@ -2,6 +2,7 @@ import asyncio
 import random
 import functools
 import traceback
+import inspect
 from .socket.protosocket import ProtoSocket
 from .socket.cryptsocket import CryptSocket
 
@@ -38,6 +39,8 @@ class Hyphen0Server:
         self._keypair = None
         self._session_nonce = get_random_bytes(32)
         self._connected_clients = {}
+        self._client_tasks = {}
+        self._hooks = {}
 
     def set_keypair(self, keypair):
         if not isinstance(keypair, ECC.EccKey):
@@ -50,15 +53,40 @@ class Hyphen0Server:
         print(f"[hyphen0] serving on {self._host}:{self._port}")
         while True:
             client, addr = await self._socket.accept()
+            if self._socket.is_closed(): return
             print(f"[hyphen0] new client connected: {addr[0]}:{addr[1]}")
-            asyncio.create_task(self._client_connected(client))
+            task = asyncio.create_task(self._client_connected(client))
+            task.add_done_callback(self._client_done_callback)
+            self._client_tasks[task] = client
+            self._client_tasks[client] = task
+
+    async def close(self):
+        for task,client in self._client_tasks.items():
+            if not isinstance(task, asyncio.Task): continue
+            task.cancel() # should also close the client
+            # await client.close()
+        self._socket.close()
 
     def serve(self):
         return asyncio.run(self.mainloop())
 
+    def _client_done_callback(self, task):
+        try:
+            if task.exception(): raise task.exception()
+        except asyncio.CancelledError: pass
+        except SocketClosed: pass
+        except WereDisconnected: pass
+        except Exception as e:
+            print(f"[hyphen0] [SERVER] Client task exited with exception")
+            for chunk in traceback.format_exception(e):
+                for line in chunk[:-1].split("\n"):
+                    print(f"[hyphen0] [SERVER] {line}")
+        self._client_tasks[task].close()
+        del self._client_tasks[self._client_tasks[task]]
+        del self._client_tasks[task]
+
     def _update_task_done_callback(self, task):
         try:
-            if isinstance(task.exception(), asyncio.CancelledError): return
             if task.exception(): raise task.exception()
         except asyncio.CancelledError: pass
     
@@ -140,16 +168,33 @@ class Hyphen0Server:
         await self._call_hook(client, "client_disconnecting")
         if graceful:
             await client._write_packet(Kick(message=message.encode()))
-        self._connected_clients[client.getnicename()]['upd'].cancel()
-        del self._connected_clients[client.getnicename()]
+        if client.getnicename() in self._connected_clients:
+            self._connected_clients[client.getnicename()]['upd'].cancel()
+            del self._connected_clients[client.getnicename()]
         client.close()
+        self._client_tasks[client].cancel()
+
+    def add_hook(self, event: str, name: str, callable):
+        self._hooks[event] = self._hooks.get(event, {})
+        self._hooks[event][name] = callable
 
     async def _call_hook(self, client: ProtoSocket, event: str, *args, **kwargs):
         if self._trace_hooks:
             print(f"[hyphen0] [{'SERVER' if not client else client.getnicename()}] {event} {args} {kwargs}")
+        for callable in self._hooks.get(event, {}).values():
+            if inspect.iscoroutinefunction(callable):
+                await callable(client, *args, **kwargs)
+            else:
+                callable(client, *args, **kwargs)
         if not hasattr(self, f"_event_{event}"):
             return # print(f"[hyphen0] [{'SERVER' if not client else client.getnicename()}] no hook")
-        return await getattr(self, f"_event_{event}")(client, *args, **kwargs)
+        callable = getattr(self, f"_event_{event}")
+        if inspect.iscoroutinefunction(callable):
+            return await callable(client, *args, **kwargs)
+        return callable(client, *args, **kwargs)
+
+    def register_packet_handler(self, packet_type: type, method) -> bool:
+        self.add_hook(f"ptype_{packet_type.__name__}_received", f"_autoadd_methid{id(method)}", method)
 
     async def work(self, client: ProtoSocket):
         while True:

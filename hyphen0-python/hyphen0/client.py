@@ -2,6 +2,7 @@ import asyncio
 import functools
 import random
 import traceback
+import inspect
 from .socket.protosocket import ProtoSocket
 from .socket.cryptsocket import CryptSocket
 
@@ -150,10 +151,19 @@ class Hyphen0Client:
         if self._trace_hooks:
             print(f"[hyphen0] [CLIENT] {event} {args} {kwargs}")
         for callable in self._hooks.get(event, {}).values():
-            await callable(*args, **kwargs)
+            if inspect.iscoroutinefunction(callable):
+                await callable(*args, **kwargs)
+            else:
+                callable(*args, **kwargs)
         if not hasattr(self, f"_event_{event}"):
             return # print(f"[hyphen0] [CLIENT] no hook")
-        return await getattr(self, f"_event_{event}")(*args, **kwargs)
+        callable = getattr(self, f"_event_{event}")
+        if inspect.iscoroutinefunction(callable):
+            return await callable(*args, **kwargs)
+        return callable(*args, **kwargs)
+
+    def register_packet_handler(self, packet_type: type, method) -> bool:
+        self.add_hook(f"ptype_{packet_type.__name__}_received", f"_autoadd_methid{id(method)}", method)
 
     async def work(self):
         while True:
