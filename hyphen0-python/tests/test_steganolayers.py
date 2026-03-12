@@ -1,5 +1,4 @@
-from hyphen0.stegano.http import HTTPSteganoLayer
-from hyphen0.stegano.tls import TLSSteganoLayer
+from hyphen0.stegano import HTTPSteganoLayer, TLSSteganoLayer
 
 def test_steganolayer_http():
     testsend = HTTPSteganoLayer()

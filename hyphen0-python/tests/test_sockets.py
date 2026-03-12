@@ -3,7 +3,7 @@ import random
 
 from hyphen0.socket import ProtoSocket, CryptSocket
 from hyphen0.packets import Packet, pack
-from hyphen0.stegano.http import HTTPSteganoLayer
+from hyphen0.stegano import HTTPSteganoLayer
 from hyphen0.encryption.aes import AESCrypter
 
 from Crypto.PublicKey import ECC

@@ -6,7 +6,7 @@ from hyphen0.socket import ProtoSocket, CryptSocket
 from hyphen0.packets import Packet, pack
 from hyphen0.server import Hyphen0Server
 from hyphen0.client import Hyphen0Client
-from hyphen0.stegano.tls import TLSSteganoLayer
+from hyphen0.stegano import TLSSteganoLayer
 
 from Crypto.PublicKey import ECC
 
