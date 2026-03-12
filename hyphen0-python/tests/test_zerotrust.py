@@ -6,7 +6,7 @@ from hyphen0.socket import ProtoSocket, CryptSocket
 from hyphen0.packets import Packet, pack
 from hyphen0.server import Hyphen0Server
 from hyphen0.client import Hyphen0Client
-from hyphen0.stegano.http import HTTPSteganoLayer
+from hyphen0.stegano.tls import TLSSteganoLayer
 
 from Crypto.PublicKey import ECC
 
@@ -24,8 +24,8 @@ class PacketTestClientbound(Packet):
     string: pack.cstring # type: ignore
 
 async def main_sockets():
-    server_host_socket = ProtoSocket(False, 1, 5, HTTPSteganoLayer())
-    client_host_socket = ProtoSocket(True,  1, 5, HTTPSteganoLayer())
+    server_host_socket = ProtoSocket(False, 1, 5, TLSSteganoLayer())
+    client_host_socket = ProtoSocket(True,  1, 5, TLSSteganoLayer())
 
     server_host_socket.bind("", TEST_PORT, 1)
     client_host_socket.connect("127.0.0.1", TEST_PORT)
@@ -62,8 +62,8 @@ class HP0TestClient(Hyphen0Client):
         self.connected = True
 
 async def main_svclient():
-    server = HP0TestServer('', TEST_PORT, HTTPSteganoLayer())
-    client = HP0TestClient('localhost', TEST_PORT, HTTPSteganoLayer())
+    server = HP0TestServer('', TEST_PORT, TLSSteganoLayer())
+    client = HP0TestClient('localhost', TEST_PORT, TLSSteganoLayer())
 
     server.set_keypair(ECC.generate(curve='p256'))
     client.set_keypair(ECC.generate(curve='p256'))

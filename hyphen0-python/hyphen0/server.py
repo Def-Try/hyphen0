@@ -8,7 +8,7 @@ from .socket.cryptsocket import CryptSocket
 from .packets.packet import Kick, Disconnect
 from .exceptions import WereDisconnected, SocketClosed
 
-from .packets.handshake import HandshakeInitiate, HandshakeConfirm, HandshakeCancel, HandshakeOK, \
+from .packets.handshake import HandshakeHello, HandshakeInitiate, HandshakeConfirm, HandshakeCancel, HandshakeOK, \
                                HandshakeCryptModesList, HandshakeCryptModeSelect, HandshakeCryptOK, \
                                HandshakeCryptKEXClient, HandshakeCryptKEXServer, \
                                HandshakeCryptTestPing, HandshakeCryptTestPong
@@ -65,6 +65,7 @@ class Hyphen0Server:
     async def _client_connected(self, client: ProtoSocket):
         update_task = asyncio.create_task(self._serve_client_update(client))
         update_task.add_done_callback(self._update_task_done_callback)
+        client.write_packet(HandshakeHello())
         await client.wait_for_packet(HandshakeInitiate)
         client.write_packet(HandshakeConfirm())
         await self._call_hook(client, "client_handshake")

@@ -2,6 +2,8 @@ from .packet import Packet, pack
 
 # pyright: reportInvalidTypeForm=false
 
+class HandshakeHello(Packet):
+    _serverbound: bool = False
 class HandshakeInitiate(Packet):
     _serverbound: bool = True
 class HandshakeConfirm(Packet):

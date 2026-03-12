@@ -8,7 +8,7 @@ from .socket.cryptsocket import CryptSocket
 from .packets.packet import Kick, Disconnect
 from .exceptions import WereKicked
 
-from .packets.handshake import HandshakeInitiate, HandshakeConfirm, HandshakeCancel, HandshakeOK, \
+from .packets.handshake import HandshakeHello, HandshakeInitiate, HandshakeConfirm, HandshakeCancel, HandshakeOK, \
                                HandshakeCryptModesList, HandshakeCryptModeSelect, HandshakeCryptOK, \
                                HandshakeCryptKEXClient, HandshakeCryptKEXServer, \
                                HandshakeCryptTestPing, HandshakeCryptTestPong
@@ -59,7 +59,8 @@ class Hyphen0Client:
             raise
         update_task = asyncio.create_task(self._serve_socket_update())
         update_task.add_done_callback(self._update_task_done_callback)
-
+        self._stage = "connecting"
+        await self._socket.wait_for_packet(HandshakeHello)
         self._stage = "handshaking"
         self._socket.write_packet(HandshakeInitiate())
         await self._socket.wait_for_packet(HandshakeConfirm)
