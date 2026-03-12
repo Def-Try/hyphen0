@@ -27,9 +27,11 @@ class _StructPrimitive(_Serialisable):
 uint8   = _StructPrimitive("B")
 uint16  = _StructPrimitive("H")
 uint32  = _StructPrimitive("I")
+uint64  = _StructPrimitive("Q")
 int8    = _StructPrimitive("b")
 int16   = _StructPrimitive("h")
 int32   = _StructPrimitive("i")
+int64   = _StructPrimitive("q")
 boolean = _StructPrimitive("?")
 
 class _NullTerminatedStringPrimitive(_Serialisable):

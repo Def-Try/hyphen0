@@ -38,6 +38,8 @@ class SteganoSocket(BasicSocket):
     
     async def _accept(self):
         sock, addr = await super()._accept()
-        sock._steganolayer = self._steganolayer
+        if self._steganolayer:
+            sock._steganolayer = type(self._steganolayer)()
+            sock._steganolayer.set_serverbound(self._steganolayer.serverbound)
         return sock, addr
         
