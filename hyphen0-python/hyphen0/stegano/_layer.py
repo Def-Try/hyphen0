@@ -32,6 +32,8 @@ class SteganoLayer:
         if len(recvd) > n:
             self.unwrapped_recv_buffer = recvd[n:]
             recvd = recvd[:n]
+        else:
+            self.unwrapped_recv_buffer = b''
         return recvd
     def pull_send(self, n: int) -> bytes:
         if not self.can_pull_send():
