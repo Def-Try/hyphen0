@@ -8,7 +8,7 @@ from hyphen0.encryption.aes import AESCrypter
 
 from Crypto.PublicKey import ECC
 
-TEST_PORT = 1340 # random.randint(1024, 65535)
+TEST_PORT = random.randint(1024, 65535)
 TEST_KEY = b"0123456789012345"
 TEST_STRING = b"hello, world!"
 

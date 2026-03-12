@@ -10,7 +10,7 @@ from hyphen0.stegano import TLSSteganoLayer
 
 from Crypto.PublicKey import ECC
 
-TEST_PORT = 1340 # random.randint(1024, 65535)
+TEST_PORT = random.randint(1024, 65535)
 TEST_STRING = b"hello, world!"
 
 class PacketTestServerbound(Packet):
