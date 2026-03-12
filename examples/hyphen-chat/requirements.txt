@@ -1,0 +1,3 @@
+# Requirements for hyphen-chat
+pycryptodome>=3.20.0
+asynctkinter>=0.3.0
