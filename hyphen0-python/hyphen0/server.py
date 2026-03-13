@@ -9,7 +9,7 @@ from .socket.cryptsocket import CryptSocket
 from .packets.packet import Kick, Disconnect
 from .exceptions import WereDisconnected, SocketClosed
 
-from .packets.handshake import HandshakeHello, HandshakeInitiate, HandshakeConfirm, HandshakeCancel, HandshakeOK, \
+from .packets.handshake import HandshakeInitiate, HandshakeConfirm, HandshakeCancel, HandshakeOK, \
                                HandshakeCryptModesList, HandshakeCryptModeSelect, HandshakeCryptOK, \
                                HandshakeCryptKEXClient, HandshakeCryptKEXServer, \
                                HandshakeCryptTestPing, HandshakeCryptTestPong
