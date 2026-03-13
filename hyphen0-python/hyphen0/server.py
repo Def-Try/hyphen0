@@ -93,7 +93,6 @@ class Hyphen0Server:
     async def _client_connected(self, client: ProtoSocket):
         update_task = asyncio.create_task(self._serve_client_update(client))
         update_task.add_done_callback(self._update_task_done_callback)
-        client.write_packet(HandshakeHello())
         await client.wait_for_packet(HandshakeInitiate)
         client.write_packet(HandshakeConfirm())
         await self._call_hook(client, "client_handshake")
